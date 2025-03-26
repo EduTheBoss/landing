@@ -19,18 +19,46 @@ export function useApi<T = any>() {
     setState({ loading: true, error: undefined, data: undefined });
     
     try {
+      // Get token from localStorage if available
+      const token = localStorage.getItem('authToken');
+      
+      // Prepare headers with existing options.headers if present
+      const existingHeaders = options?.headers || {};
+      const headers = new Headers(existingHeaders);
+      
+      // Set content type if not already set
+      if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
+      
+      // Add Authorization header if token exists
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      
       const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Add this to include cookies with all requests
         ...options,
+        headers,
+        credentials: 'include', // Include cookies for browser-based auth
       });
       
-      const data = await response.json();
+      // Try to parse JSON, but handle case where response might not be JSON
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        // For non-JSON responses
+        const text = await response.text();
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          data = { message: text };
+        }
+      }
       
       if (!response.ok) {
-        throw new Error(data.message || 'Something went wrong');
+        throw new Error(data.message || `Error: ${response.status}`);
       }
       
       setState({ loading: false, data: data.data, error: undefined });

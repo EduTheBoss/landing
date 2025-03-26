@@ -7,6 +7,7 @@ import { useApi } from './use-api';
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const api = useApi();
   const router = useRouter();
 
@@ -14,18 +15,20 @@ export function useAuth() {
   useEffect(() => {
     const checkAuth = async () => {
       setIsLoading(true);
+      
+      // First check if we have a token in localStorage
+      const storedToken = localStorage.getItem('authToken');
+      if (storedToken) {
+        setAuthToken(storedToken);
+        setIsAuthenticated(true);
+        setIsLoading(false);
+        return;
+      }
+      
       try {
-        // Check for stored auth flag for development
-        const storedAuth = localStorage.getItem('isAuthenticated');
-        if (storedAuth === 'true') {
-          setIsAuthenticated(true);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Otherwise check with the API
+        // If no stored token, check with the API
         const response = await api.get('/api/auth/verify');
-        setIsAuthenticated(response.success && response.data.authenticated);
+        setIsAuthenticated(response.success && response.data?.authenticated);
       } catch (error) {
         setIsAuthenticated(false);
       } finally {
@@ -41,9 +44,14 @@ export function useAuth() {
     setIsLoading(true);
     try {
       const response = await api.post('/api/auth/login', { username, password });
+      
       if (response.success) {
-        // Store auth state in localStorage as a fallback
-        localStorage.setItem('isAuthenticated', 'true');
+        // Store the token in localStorage if it's returned
+        if (response.data?.token) {
+          localStorage.setItem('authToken', response.data.token);
+          setAuthToken(response.data.token);
+        }
+        
         setIsAuthenticated(true);
         return { success: true };
       } else {
@@ -62,8 +70,9 @@ export function useAuth() {
     setIsLoading(true);
     try {
       await api.post('/api/auth/logout', {});
-      // Remove the local storage item
-      localStorage.removeItem('isAuthenticated');
+      // Clear the stored token
+      localStorage.removeItem('authToken');
+      setAuthToken(null);
       setIsAuthenticated(false);
       router.push('/admin');
     } catch (error) {
@@ -76,6 +85,7 @@ export function useAuth() {
   return {
     isAuthenticated,
     isLoading,
+    authToken,
     login,
     logout,
   };
