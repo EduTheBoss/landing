@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,206 +9,318 @@ import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash, Edit, Save, X } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-interface Education {
-  id: number
-  degree: string
-  institution: string
-  year: string
-  description: string
-}
-
-interface Certification {
-  id: number
-  name: string
-  issuer: string
-  year: string
-  description: string
-}
-
-interface SkillGroup {
-  id: number
-  category: string
-  items: string[]
-}
+import { usePortfolioData } from "../data-provider"
+import { useApi } from "@/hooks/use-api"
+import { Education, Certification, SkillGroup } from "../data-provider"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function EducationEditor() {
-  const [education, setEducation] = useState<Education[]>([
-    {
-      id: 1,
-      degree: "Master of Computer Science",
-      institution: "Tech University",
-      year: "2014 - 2016",
-      description: "Specialized in Human-Computer Interaction and Software Engineering",
-    },
-    {
-      id: 2,
-      degree: "Bachelor of Science in Information Technology",
-      institution: "State University",
-      year: "2010 - 2014",
-      description: "Graduated with honors, GPA 3.8/4.0",
-    },
-  ])
-
-  const [certifications, setCertifications] = useState<Certification[]>([
-    {
-      id: 1,
-      name: "AWS Certified Solutions Architect",
-      issuer: "Amazon Web Services",
-      year: "2022",
-      description: "Professional level certification for designing distributed systems on AWS",
-    },
-    {
-      id: 2,
-      name: "Google Professional Cloud Developer",
-      issuer: "Google Cloud",
-      year: "2021",
-      description: "Advanced certification for building scalable applications on GCP",
-    },
-    {
-      id: 3,
-      name: "Certified Scrum Master",
-      issuer: "Scrum Alliance",
-      year: "2020",
-      description: "Certification in Agile project management methodologies",
-    },
-  ])
-
-  const [skillGroups, setSkillGroups] = useState<SkillGroup[]>([
-    {
-      id: 1,
-      category: "Frontend",
-      items: ["React", "Next.js", "TypeScript", "TailwindCSS", "Redux", "HTML/CSS", "JavaScript"],
-    },
-    {
-      id: 2,
-      category: "Backend",
-      items: ["Node.js", "Express", "Python", "Django", "GraphQL", "REST API Design"],
-    },
-    {
-      id: 3,
-      category: "Database",
-      items: ["MongoDB", "PostgreSQL", "MySQL", "Firebase", "Redis"],
-    },
-    {
-      id: 4,
-      category: "DevOps",
-      items: ["Docker", "Kubernetes", "CI/CD", "AWS", "GCP", "Vercel", "Netlify"],
-    },
-  ])
+  const { 
+    education: initialEducation, 
+    certifications: initialCertifications, 
+    skillGroups: initialSkillGroups, 
+    isLoading,
+    refreshData 
+  } = usePortfolioData();
+  
+  // Local state
+  const [education, setEducation] = useState<Education[]>([]);
+  const [certifications, setCertifications] = useState<Certification[]>([]);
+  const [skillGroups, setSkillGroups] = useState<SkillGroup[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Education state
-  const [editingEducationId, setEditingEducationId] = useState<number | null>(null)
+  const [editingEducationId, setEditingEducationId] = useState<number | null>(null);
   const [newEducation, setNewEducation] = useState<Omit<Education, "id">>({
     degree: "",
     institution: "",
     year: "",
     description: "",
-  })
+  });
 
   // Certification state
-  const [editingCertificationId, setEditingCertificationId] = useState<number | null>(null)
+  const [editingCertificationId, setEditingCertificationId] = useState<number | null>(null);
   const [newCertification, setNewCertification] = useState<Omit<Certification, "id">>({
     name: "",
     issuer: "",
     year: "",
     description: "",
-  })
+  });
 
   // Skill group state
-  const [editingSkillGroupId, setEditingSkillGroupId] = useState<number | null>(null)
+  const [editingSkillGroupId, setEditingSkillGroupId] = useState<number | null>(null);
   const [newSkillGroup, setNewSkillGroup] = useState<Omit<SkillGroup, "id">>({
     category: "",
     items: [],
-  })
-  const [skillInput, setSkillInput] = useState("")
-  const [editSkillInput, setEditSkillInput] = useState("")
+  });
+  const [skillInput, setSkillInput] = useState("");
+  const [editSkillInput, setEditSkillInput] = useState("");
+  
+  const api = useApi();
+
+  // Update local state when data is loaded
+  useEffect(() => {
+    if (initialEducation) setEducation(initialEducation);
+    if (initialCertifications) setCertifications(initialCertifications);
+    if (initialSkillGroups) setSkillGroups(initialSkillGroups);
+  }, [initialEducation, initialCertifications, initialSkillGroups]);
 
   // Education handlers
-  const handleAddEducation = () => {
+  const handleAddEducation = async () => {
     if (newEducation.degree && newEducation.institution) {
-      const newId = education.length > 0 ? Math.max(...education.map((e) => e.id)) + 1 : 1
-      setEducation((prev) => [...prev, { ...newEducation, id: newId }])
-      setNewEducation({
-        degree: "",
-        institution: "",
-        year: "",
-        description: "",
-      })
-      toast({
-        title: "Education added",
-        description: "New education entry has been added successfully.",
-      })
+      setIsSubmitting(true);
+      
+      try {
+        const result = await api.post('/api/education', newEducation);
+        
+        if (result.success) {
+          // Reset form
+          setNewEducation({
+            degree: "",
+            institution: "",
+            year: "",
+            description: "",
+          });
+          
+          // Refresh data
+          await refreshData();
+          
+          toast({
+            title: "Education added",
+            description: "New education entry has been added successfully.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Failed to add education entry.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Education add error:', error);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
-  }
+  };
 
-  const handleDeleteEducation = (id: number) => {
-    setEducation((prev) => prev.filter((edu) => edu.id !== id))
-    toast({
-      title: "Education deleted",
-      description: "Education entry has been removed successfully.",
-    })
-  }
+  const handleDeleteEducation = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      const result = await api.del(`/api/education/${id}`);
+      
+      if (result.success) {
+        // Update local state
+        setEducation((prev) => prev.filter((edu) => edu.id !== id));
+        
+        toast({
+          title: "Education deleted",
+          description: "Education entry has been removed successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to delete education entry.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Education delete error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleEditEducation = (edu: Education) => {
-    setEditingEducationId(edu.id)
-  }
+    setEditingEducationId(edu.id);
+  };
 
-  const handleUpdateEducation = (id: number) => {
-    setEducation((prev) => prev.map((edu) => (edu.id === id ? { ...edu } : edu)))
-    setEditingEducationId(null)
-    toast({
-      title: "Education updated",
-      description: "Education entry has been updated successfully.",
-    })
-  }
+  const handleUpdateEducation = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      // Find the education to update
+      const eduToUpdate = education.find(edu => edu.id === id);
+      
+      if (!eduToUpdate) {
+        toast({
+          title: "Error",
+          description: "Education entry not found.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const result = await api.put(`/api/education/${id}`, eduToUpdate);
+      
+      if (result.success) {
+        setEditingEducationId(null);
+        
+        toast({
+          title: "Education updated",
+          description: "Education entry has been updated successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to update education entry.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Education update error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleEducationChange = (id: number, field: keyof Education, value: string) => {
-    setEducation((prev) => prev.map((edu) => (edu.id === id ? { ...edu, [field]: value } : edu)))
-  }
+    setEducation((prev) => prev.map((edu) => (edu.id === id ? { ...edu, [field]: value } : edu)));
+  };
 
   // Certification handlers
-  const handleAddCertification = () => {
+  const handleAddCertification = async () => {
     if (newCertification.name && newCertification.issuer) {
-      const newId = certifications.length > 0 ? Math.max(...certifications.map((c) => c.id)) + 1 : 1
-      setCertifications((prev) => [...prev, { ...newCertification, id: newId }])
-      setNewCertification({
-        name: "",
-        issuer: "",
-        year: "",
-        description: "",
-      })
-      toast({
-        title: "Certification added",
-        description: "New certification has been added successfully.",
-      })
+      setIsSubmitting(true);
+      
+      try {
+        const result = await api.post('/api/certifications', newCertification);
+        
+        if (result.success) {
+          // Reset form
+          setNewCertification({
+            name: "",
+            issuer: "",
+            year: "",
+            description: "",
+          });
+          
+          // Refresh data
+          await refreshData();
+          
+          toast({
+            title: "Certification added",
+            description: "New certification has been added successfully.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Failed to add certification.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Certification add error:', error);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
-  }
-
-  const handleDeleteCertification = (id: number) => {
-    setCertifications((prev) => prev.filter((cert) => cert.id !== id))
-    toast({
-      title: "Certification deleted",
-      description: "Certification has been removed successfully.",
-    })
-  }
+  };
+  const handleDeleteCertification = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      const result = await api.del(`/api/certifications/${id}`);
+      
+      if (result.success) {
+        // Update local state
+        setCertifications((prev) => prev.filter((cert) => cert.id !== id));
+        
+        toast({
+          title: "Certification deleted",
+          description: "Certification has been removed successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to delete certification.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Certification delete error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleEditCertification = (cert: Certification) => {
-    setEditingCertificationId(cert.id)
-  }
+    setEditingCertificationId(cert.id);
+  };
 
-  const handleUpdateCertification = (id: number) => {
-    setCertifications((prev) => prev.map((cert) => (cert.id === id ? { ...cert } : cert)))
-    setEditingCertificationId(null)
-    toast({
-      title: "Certification updated",
-      description: "Certification has been updated successfully.",
-    })
-  }
+  const handleUpdateCertification = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      // Find the certification to update
+      const certToUpdate = certifications.find(cert => cert.id === id);
+      
+      if (!certToUpdate) {
+        toast({
+          title: "Error",
+          description: "Certification not found.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const result = await api.put(`/api/certifications/${id}`, certToUpdate);
+      
+      if (result.success) {
+        setEditingCertificationId(null);
+        
+        toast({
+          title: "Certification updated",
+          description: "Certification has been updated successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to update certification.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Certification update error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleCertificationChange = (id: number, field: keyof Certification, value: string) => {
-    setCertifications((prev) => prev.map((cert) => (cert.id === id ? { ...cert, [field]: value } : cert)))
-  }
+    setCertifications((prev) => prev.map((cert) => (cert.id === id ? { ...cert, [field]: value } : cert)));
+  };
 
   // Skill group handlers
   const handleAddSkill = () => {
@@ -216,72 +328,183 @@ export default function EducationEditor() {
       setNewSkillGroup((prev) => ({
         ...prev,
         items: [...prev.items, skillInput.trim()],
-      }))
-      setSkillInput("")
+      }));
+      setSkillInput("");
     }
-  }
+  };
 
   const handleRemoveSkill = (index: number) => {
     setNewSkillGroup((prev) => ({
       ...prev,
       items: prev.items.filter((_, i) => i !== index),
-    }))
-  }
+    }));
+  };
 
-  const handleAddSkillGroup = () => {
+  const handleAddSkillGroup = async () => {
     if (newSkillGroup.category && newSkillGroup.items.length > 0) {
-      const newId = skillGroups.length > 0 ? Math.max(...skillGroups.map((sg) => sg.id)) + 1 : 1
-      setSkillGroups((prev) => [...prev, { ...newSkillGroup, id: newId }])
-      setNewSkillGroup({
-        category: "",
-        items: [],
-      })
-      toast({
-        title: "Skill group added",
-        description: "New skill group has been added successfully.",
-      })
+      setIsSubmitting(true);
+      
+      try {
+        const result = await api.post('/api/skills', newSkillGroup);
+        
+        if (result.success) {
+          // Reset form
+          setNewSkillGroup({
+            category: "",
+            items: [],
+          });
+          
+          // Refresh data
+          await refreshData();
+          
+          toast({
+            title: "Skill group added",
+            description: "New skill group has been added successfully.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Failed to add skill group.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Skill group add error:', error);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
-  }
+  };
 
-  const handleDeleteSkillGroup = (id: number) => {
-    setSkillGroups((prev) => prev.filter((sg) => sg.id !== id))
-    toast({
-      title: "Skill group deleted",
-      description: "Skill group has been removed successfully.",
-    })
-  }
+  const handleDeleteSkillGroup = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      const result = await api.del(`/api/skills/${id}`);
+      
+      if (result.success) {
+        // Update local state
+        setSkillGroups((prev) => prev.filter((sg) => sg.id !== id));
+        
+        toast({
+          title: "Skill group deleted",
+          description: "Skill group has been removed successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to delete skill group.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Skill group delete error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleEditSkillGroup = (sg: SkillGroup) => {
-    setEditingSkillGroupId(sg.id)
-    setEditSkillInput("")
-  }
+    setEditingSkillGroupId(sg.id);
+    setEditSkillInput("");
+  };
 
-  const handleUpdateSkillGroup = (id: number) => {
-    setSkillGroups((prev) => prev.map((sg) => (sg.id === id ? { ...sg } : sg)))
-    setEditingSkillGroupId(null)
-    toast({
-      title: "Skill group updated",
-      description: "Skill group has been updated successfully.",
-    })
-  }
+  const handleUpdateSkillGroup = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      // Find the skill group to update
+      const sgToUpdate = skillGroups.find(sg => sg.id === id);
+      
+      if (!sgToUpdate) {
+        toast({
+          title: "Error",
+          description: "Skill group not found.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const result = await api.put(`/api/skills/${id}`, sgToUpdate);
+      
+      if (result.success) {
+        setEditingSkillGroupId(null);
+        
+        toast({
+          title: "Skill group updated",
+          description: "Skill group has been updated successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to update skill group.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Skill group update error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSkillGroupChange = (id: number, field: keyof SkillGroup, value: string | string[]) => {
-    setSkillGroups((prev) => prev.map((sg) => (sg.id === id ? { ...sg, [field]: value } : sg)))
-  }
+    setSkillGroups((prev) => prev.map((sg) => (sg.id === id ? { ...sg, [field]: value } : sg)));
+  };
 
   const handleAddEditSkill = (id: number) => {
     if (editSkillInput.trim()) {
       setSkillGroups((prev) =>
-        prev.map((sg) => (sg.id === id ? { ...sg, items: [...sg.items, editSkillInput.trim()] } : sg)),
-      )
-      setEditSkillInput("")
+        prev.map((sg) => (sg.id === id ? { ...sg, items: [...sg.items, editSkillInput.trim()] } : sg))
+      );
+      setEditSkillInput("");
     }
-  }
+  };
 
   const handleRemoveEditSkill = (id: number, index: number) => {
     setSkillGroups((prev) =>
-      prev.map((sg) => (sg.id === id ? { ...sg, items: sg.items.filter((_, i) => i !== index) } : sg)),
-    )
+      prev.map((sg) => (sg.id === id ? { ...sg, items: sg.items.filter((_, i) => i !== index) } : sg))
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-10 w-full rounded-md" />
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-1/3 mb-2" />
+            <Skeleton className="h-4 w-2/3" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[...Array(4)].map((_, idx) => (
+              <div className="space-y-2" key={idx}>
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
+          <CardFooter>
+            <Skeleton className="h-10 w-32" />
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -343,7 +566,9 @@ export default function EducationEditor() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button onClick={handleAddEducation}>Add Education</Button>
+            <Button onClick={handleAddEducation} disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Education"}
+            </Button>
           </CardFooter>
         </Card>
 
@@ -393,10 +618,10 @@ export default function EducationEditor() {
                   </div>
 
                   <div className="flex gap-2 pt-2">
-                    <Button onClick={() => handleUpdateEducation(edu.id)} size="sm">
-                      <Save className="h-4 w-4 mr-2" /> Save
+                    <Button onClick={() => handleUpdateEducation(edu.id)} size="sm" disabled={isSubmitting}>
+                      <Save className="h-4 w-4 mr-2" /> {isSubmitting ? "Saving..." : "Save"}
                     </Button>
-                    <Button onClick={() => setEditingEducationId(null)} variant="outline" size="sm">
+                    <Button onClick={() => setEditingEducationId(null)} variant="outline" size="sm" disabled={isSubmitting}>
                       Cancel
                     </Button>
                   </div>
@@ -412,10 +637,10 @@ export default function EducationEditor() {
                         </CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <Button onClick={() => handleEditEducation(edu)} variant="outline" size="icon">
+                        <Button onClick={() => handleEditEducation(edu)} variant="outline" size="icon" disabled={isSubmitting}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button onClick={() => handleDeleteEducation(edu.id)} variant="destructive" size="icon">
+                        <Button onClick={() => handleDeleteEducation(edu.id)} variant="destructive" size="icon" disabled={isSubmitting}>
                           <Trash className="h-4 w-4" />
                         </Button>
                       </div>
@@ -432,12 +657,14 @@ export default function EducationEditor() {
       </TabsContent>
 
       <TabsContent value="certifications" className="space-y-8">
+        {/* Similar pattern to education section */}
         <Card>
           <CardHeader>
             <CardTitle>Add New Certification</CardTitle>
             <CardDescription>Add your professional certifications</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Certification form fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="certName">Certification Name</Label>
@@ -482,7 +709,9 @@ export default function EducationEditor() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button onClick={handleAddCertification}>Add Certification</Button>
+            <Button onClick={handleAddCertification} disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Certification"}
+            </Button>
           </CardFooter>
         </Card>
 
@@ -532,10 +761,10 @@ export default function EducationEditor() {
                   </div>
 
                   <div className="flex gap-2 pt-2">
-                    <Button onClick={() => handleUpdateCertification(cert.id)} size="sm">
-                      <Save className="h-4 w-4 mr-2" /> Save
+                    <Button onClick={() => handleUpdateCertification(cert.id)} size="sm" disabled={isSubmitting}>
+                      <Save className="h-4 w-4 mr-2" /> {isSubmitting ? "Saving..." : "Save"}
                     </Button>
-                    <Button onClick={() => setEditingCertificationId(null)} variant="outline" size="sm">
+                    <Button onClick={() => setEditingCertificationId(null)} variant="outline" size="sm" disabled={isSubmitting}>
                       Cancel
                     </Button>
                   </div>
@@ -551,10 +780,10 @@ export default function EducationEditor() {
                         </CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <Button onClick={() => handleEditCertification(cert)} variant="outline" size="icon">
+                        <Button onClick={() => handleEditCertification(cert)} variant="outline" size="icon" disabled={isSubmitting}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button onClick={() => handleDeleteCertification(cert.id)} variant="destructive" size="icon">
+                        <Button onClick={() => handleDeleteCertification(cert.id)} variant="destructive" size="icon" disabled={isSubmitting}>
                           <Trash className="h-4 w-4" />
                         </Button>
                       </div>
@@ -619,7 +848,9 @@ export default function EducationEditor() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button onClick={handleAddSkillGroup}>Add Skill Group</Button>
+            <Button onClick={handleAddSkillGroup} disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Skill Group"}
+            </Button>
           </CardFooter>
         </Card>
 
@@ -670,10 +901,10 @@ export default function EducationEditor() {
                   </div>
 
                   <div className="flex gap-2 pt-2">
-                    <Button onClick={() => handleUpdateSkillGroup(sg.id)} size="sm">
-                      <Save className="h-4 w-4 mr-2" /> Save
+                    <Button onClick={() => handleUpdateSkillGroup(sg.id)} size="sm" disabled={isSubmitting}>
+                      <Save className="h-4 w-4 mr-2" /> {isSubmitting ? "Saving..." : "Save"}
                     </Button>
-                    <Button onClick={() => setEditingSkillGroupId(null)} variant="outline" size="sm">
+                    <Button onClick={() => setEditingSkillGroupId(null)} variant="outline" size="sm" disabled={isSubmitting}>
                       Cancel
                     </Button>
                   </div>
@@ -684,10 +915,10 @@ export default function EducationEditor() {
                     <div className="flex justify-between">
                       <CardTitle>{sg.category}</CardTitle>
                       <div className="flex gap-2">
-                        <Button onClick={() => handleEditSkillGroup(sg)} variant="outline" size="icon">
+                        <Button onClick={() => handleEditSkillGroup(sg)} variant="outline" size="icon" disabled={isSubmitting}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button onClick={() => handleDeleteSkillGroup(sg.id)} variant="destructive" size="icon">
+                        <Button onClick={() => handleDeleteSkillGroup(sg.id)} variant="destructive" size="icon" disabled={isSubmitting}>
                           <Trash className="h-4 w-4" />
                         </Button>
                       </div>
@@ -711,4 +942,3 @@ export default function EducationEditor() {
     </Tabs>
   )
 }
-

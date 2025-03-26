@@ -3,11 +3,14 @@
 import { useRef, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { usePortfolioData } from "./data-provider"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function EducationSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const [isVisible, setIsVisible] = useState(false)
   const [activeTab, setActiveTab] = useState("education")
+  const { education, certifications, skillGroups, isLoading } = usePortfolioData();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -30,61 +33,6 @@ export default function EducationSection() {
       }
     }
   }, [])
-
-  const education = [
-    {
-      degree: "Master of Computer Science",
-      institution: "Tech University",
-      year: "2014 - 2016",
-      description: "Specialized in Human-Computer Interaction and Software Engineering",
-    },
-    {
-      degree: "Bachelor of Science in Information Technology",
-      institution: "State University",
-      year: "2010 - 2014",
-      description: "Graduated with honors, GPA 3.8/4.0",
-    },
-  ]
-
-  const certifications = [
-    {
-      name: "AWS Certified Solutions Architect",
-      issuer: "Amazon Web Services",
-      year: "2022",
-      description: "Professional level certification for designing distributed systems on AWS",
-    },
-    {
-      name: "Google Professional Cloud Developer",
-      issuer: "Google Cloud",
-      year: "2021",
-      description: "Advanced certification for building scalable applications on GCP",
-    },
-    {
-      name: "Certified Scrum Master",
-      issuer: "Scrum Alliance",
-      year: "2020",
-      description: "Certification in Agile project management methodologies",
-    },
-  ]
-
-  const skills = [
-    {
-      category: "Frontend",
-      items: ["React", "Next.js", "TypeScript", "TailwindCSS", "Redux", "HTML/CSS", "JavaScript"],
-    },
-    {
-      category: "Backend",
-      items: ["Node.js", "Express", "Python", "Django", "GraphQL", "REST API Design"],
-    },
-    {
-      category: "Database",
-      items: ["MongoDB", "PostgreSQL", "MySQL", "Firebase", "Redis"],
-    },
-    {
-      category: "DevOps",
-      items: ["Docker", "Kubernetes", "CI/CD", "AWS", "GCP", "Vercel", "Netlify"],
-    },
-  ]
 
   return (
     <>
@@ -122,19 +70,34 @@ export default function EducationSection() {
               isVisible && activeTab === "education" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
             }`}
           >
-            {education.map((edu, index) => (
-              <Card key={index} className="card-hover-effect border-t-4 border-t-primary custom-card">
-                <CardHeader>
-                  <CardTitle className="text-primary">{edu.degree}</CardTitle>
-                  <CardDescription className="text-accent">
-                    {edu.institution} | {edu.year}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-foreground/80">{edu.description}</p>
-                </CardContent>
-              </Card>
-            ))}
+            {isLoading ? (
+              // Loading skeletons
+              Array(2).fill(0).map((_, index) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <Skeleton className="h-8 w-3/4" />
+                    <Skeleton className="h-5 w-1/2 mt-2" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-16 w-full" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              education.map((edu) => (
+                <Card key={edu.id} className="card-hover-effect border-t-4 border-t-primary custom-card">
+                  <CardHeader>
+                    <CardTitle className="text-primary">{edu.degree}</CardTitle>
+                    <CardDescription className="text-accent">
+                      {edu.institution} | {edu.year}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-foreground/80">{edu.description}</p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </TabsContent>
 
           <TabsContent
@@ -143,19 +106,34 @@ export default function EducationSection() {
               isVisible && activeTab === "certifications" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
             }`}
           >
-            {certifications.map((cert, index) => (
-              <Card key={index} className="card-hover-effect border-t-4 border-t-primary custom-card">
-                <CardHeader>
-                  <CardTitle className="text-primary">{cert.name}</CardTitle>
-                  <CardDescription className="text-accent">
-                    {cert.issuer} | {cert.year}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-foreground/80">{cert.description}</p>
-                </CardContent>
-              </Card>
-            ))}
+            {isLoading ? (
+              // Loading skeletons
+              Array(3).fill(0).map((_, index) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <Skeleton className="h-8 w-3/4" />
+                    <Skeleton className="h-5 w-1/2 mt-2" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-16 w-full" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              certifications.map((cert) => (
+                <Card key={cert.id} className="card-hover-effect border-t-4 border-t-primary custom-card">
+                  <CardHeader>
+                    <CardTitle className="text-primary">{cert.name}</CardTitle>
+                    <CardDescription className="text-accent">
+                      {cert.issuer} | {cert.year}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-foreground/80">{cert.description}</p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </TabsContent>
 
           <TabsContent
@@ -165,25 +143,43 @@ export default function EducationSection() {
             }`}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {skills.map((skillGroup, index) => (
-                <Card key={index} className="card-hover-effect border-t-4 border-t-primary custom-card">
-                  <CardHeader>
-                    <CardTitle className="text-primary">{skillGroup.category}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {skillGroup.items.map((skill, idx) => (
-                        <span
-                          key={idx}
-                          className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm transition-all duration-300 hover:bg-primary hover:text-primary-foreground cursor-default"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {isLoading ? (
+                // Loading skeletons
+                Array(4).fill(0).map((_, index) => (
+                  <Card key={index}>
+                    <CardHeader>
+                      <Skeleton className="h-8 w-1/2" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {Array(6).fill(0).map((_, idx) => (
+                          <Skeleton key={idx} className="h-8 w-20 rounded-full" />
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                skillGroups.map((skillGroup) => (
+                  <Card key={skillGroup.id} className="card-hover-effect border-t-4 border-t-primary custom-card">
+                    <CardHeader>
+                      <CardTitle className="text-primary">{skillGroup.category}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {skillGroup.items.map((skill, idx) => (
+                          <span
+                            key={idx}
+                            className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm transition-all duration-300 hover:bg-primary hover:text-primary-foreground cursor-default"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
         </Tabs>
@@ -191,4 +187,3 @@ export default function EducationSection() {
     </>
   )
 }
-

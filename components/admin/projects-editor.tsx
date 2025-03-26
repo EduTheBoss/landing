@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,63 +11,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash, Edit, Save, X } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { Switch } from "@/components/ui/switch"
-
-interface Project {
-  id: number
-  title: string
-  shortDescription: string
-  fullDescription: string
-  image: string
-  tags: string[]
-  liveUrl: string
-  githubUrl: string
-  featured: boolean
-}
+import { usePortfolioData } from "../data-provider"
+import { useApi } from "@/hooks/use-api"
+import { Project } from "../data-provider"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ProjectsEditor() {
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: 1,
-      title: "E-commerce Platform",
-      shortDescription:
-        "A full-featured online store with payment processing, inventory management, and analytics dashboard.",
-      fullDescription:
-        "This comprehensive e-commerce solution provides businesses with everything they need to sell products online. Features include secure payment processing with Stripe, real-time inventory management, customer accounts, order tracking, and an advanced analytics dashboard for business insights. The platform is built with performance and SEO in mind, ensuring fast page loads and good search engine visibility.",
-      image: "/placeholder.svg?height=300&width=600",
-      tags: ["Next.js", "Stripe", "MongoDB", "Redux", "TailwindCSS"],
-      liveUrl: "https://example.com/ecommerce",
-      githubUrl: "https://github.com/yourusername/ecommerce",
-      featured: true,
-    },
-    {
-      id: 2,
-      title: "Health Tracking App",
-      shortDescription:
-        "Mobile-first application for tracking fitness goals, nutrition, and health metrics with data visualization.",
-      fullDescription:
-        "This health tracking application helps users monitor their fitness journey with comprehensive tracking tools. Users can log workouts, track nutrition intake, monitor vital health metrics, and visualize their progress over time with interactive charts. The app includes goal setting features, personalized recommendations, and social sharing capabilities to keep users motivated. Built with React Native for cross-platform compatibility and Firebase for real-time data synchronization.",
-      image: "/placeholder.svg?height=300&width=600",
-      tags: ["React Native", "Firebase", "D3.js", "Redux", "Expo"],
-      liveUrl: "https://example.com/healthapp",
-      githubUrl: "https://github.com/yourusername/health-tracker",
-      featured: true,
-    },
-    {
-      id: 3,
-      title: "AI Content Generator",
-      shortDescription:
-        "Web application that leverages AI to generate marketing content, blog posts, and social media captions.",
-      fullDescription:
-        "This AI-powered content generation tool helps marketers and content creators produce high-quality written content quickly. The application uses advanced natural language processing models to generate blog posts, marketing copy, social media captions, and product descriptions based on user inputs. Features include content customization options, tone adjustment, multiple export formats, and a user-friendly interface for non-technical users. The backend is built with Python and Flask, while the frontend uses React for a responsive user experience.",
-      image: "/placeholder.svg?height=300&width=600",
-      tags: ["Python", "OpenAI API", "React", "Flask", "PostgreSQL"],
-      liveUrl: "https://example.com/ai-content",
-      githubUrl: "https://github.com/yourusername/ai-content-generator",
-      featured: true,
-    },
-  ])
-
-  const [editingId, setEditingId] = useState<number | null>(null)
+  const { projects: initialProjects, isLoading: isLoadingProjects, refreshData } = usePortfolioData();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [newProject, setNewProject] = useState<Omit<Project, "id">>({
     title: "",
     shortDescription: "",
@@ -77,107 +31,289 @@ export default function ProjectsEditor() {
     liveUrl: "",
     githubUrl: "",
     featured: false,
-  })
-  const [tagInput, setTagInput] = useState("")
-  const [editTagInput, setEditTagInput] = useState("")
+  });
+  
+  const [tagInput, setTagInput] = useState("");
+  const [editTagInput, setEditTagInput] = useState("");
+  
+  const api = useApi();
+
+  // Update local state when projects data is loaded
+  useEffect(() => {
+    if (initialProjects) {
+      setProjects(initialProjects);
+    }
+  }, [initialProjects]);
 
   const handleAddTag = () => {
     if (tagInput.trim()) {
       setNewProject((prev) => ({
         ...prev,
         tags: [...prev.tags, tagInput.trim()],
-      }))
-      setTagInput("")
+      }));
+      setTagInput("");
     }
-  }
+  };
 
   const handleRemoveTag = (index: number) => {
     setNewProject((prev) => ({
       ...prev,
       tags: prev.tags.filter((_, i) => i !== index),
-    }))
-  }
+    }));
+  };
 
-  const handleAddProject = () => {
+  const handleAddProject = async () => {
     if (newProject.title && newProject.shortDescription) {
-      const newId = projects.length > 0 ? Math.max(...projects.map((p) => p.id)) + 1 : 1
-      setProjects((prev) => [...prev, { ...newProject, id: newId }])
-      setNewProject({
-        title: "",
-        shortDescription: "",
-        fullDescription: "",
-        image: "/placeholder.svg?height=300&width=600",
-        tags: [],
-        liveUrl: "",
-        githubUrl: "",
-        featured: false,
-      })
-      toast({
-        title: "Project added",
-        description: "New project has been added successfully.",
-      })
+      setIsSubmitting(true);
+      
+      try {
+        const result = await api.post('/api/projects', newProject);
+        
+        if (result.success) {
+          // Reset form
+          setNewProject({
+            title: "",
+            shortDescription: "",
+            fullDescription: "",
+            image: "/placeholder.svg?height=300&width=600",
+            tags: [],
+            liveUrl: "",
+            githubUrl: "",
+            featured: false,
+          });
+          
+          // Refresh data from API
+          await refreshData();
+          
+          toast({
+            title: "Project added",
+            description: "New project has been added successfully.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Failed to add project.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Project add error:', error);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
-  }
+  };
 
-  const handleDeleteProject = (id: number) => {
-    setProjects((prev) => prev.filter((proj) => proj.id !== id))
-    toast({
-      title: "Project deleted",
-      description: "Project has been removed successfully.",
-    })
-  }
+  const handleDeleteProject = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      const result = await api.del(`/api/projects/${id}`);
+      
+      if (result.success) {
+        // Update local state
+        setProjects((prev) => prev.filter((proj) => proj.id !== id));
+        
+        toast({
+          title: "Project deleted",
+          description: "Project has been removed successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to delete project.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Project delete error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleEditProject = (proj: Project) => {
-    setEditingId(proj.id)
-    setEditTagInput("")
-  }
+    setEditingId(proj.id);
+    setEditTagInput("");
+  };
 
-  const handleUpdateProject = (id: number) => {
-    setProjects((prev) => prev.map((proj) => (proj.id === id ? { ...proj } : proj)))
-    setEditingId(null)
-    toast({
-      title: "Project updated",
-      description: "Project has been updated successfully.",
-    })
-  }
-
+  const handleUpdateProject = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      // Find the project to update
+      const projToUpdate = projects.find(proj => proj.id === id);
+      
+      if (!projToUpdate) {
+        toast({
+          title: "Error",
+          description: "Project not found.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const result = await api.put(`/api/projects/${id}`, projToUpdate);
+      
+      if (result.success) {
+        setEditingId(null);
+        
+        toast({
+          title: "Project updated",
+          description: "Project has been updated successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to update project.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Project update error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   const handleEditChange = (id: number, field: keyof Project, value: string | boolean) => {
-    setProjects((prev) => prev.map((proj) => (proj.id === id ? { ...proj, [field]: value } : proj)))
-  }
+    setProjects((prev) => prev.map((proj) => (proj.id === id ? { ...proj, [field]: value } : proj)));
+  };
 
   const handleAddEditTag = (id: number) => {
     if (editTagInput.trim()) {
       setProjects((prev) =>
-        prev.map((proj) => (proj.id === id ? { ...proj, tags: [...proj.tags, editTagInput.trim()] } : proj)),
-      )
-      setEditTagInput("")
+        prev.map((proj) => (proj.id === id ? { ...proj, tags: [...proj.tags, editTagInput.trim()] } : proj))
+      );
+      setEditTagInput("");
     }
-  }
+  };
 
   const handleRemoveEditTag = (id: number, index: number) => {
     setProjects((prev) =>
-      prev.map((proj) => (proj.id === id ? { ...proj, tags: proj.tags.filter((_, i) => i !== index) } : proj)),
-    )
-  }
+      prev.map((proj) => (proj.id === id ? { ...proj, tags: proj.tags.filter((_, i) => i !== index) } : proj))
+    );
+  };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, id?: number) => {
-    const file = e.target.files?.[0]
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, id?: number) => {
+    const file = e.target.files?.[0];
     if (file) {
-      // In a real application, this would upload to a storage service
-      // For demo purposes, we're just creating a local URL
-      const url = URL.createObjectURL(file)
-
-      if (id) {
-        // Editing existing project
-        setProjects((prev) => prev.map((proj) => (proj.id === id ? { ...proj, image: url } : proj)))
-      } else {
-        // New project
-        setNewProject((prev) => ({
-          ...prev,
-          image: url,
-        }))
+      // Create a FormData object
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        // Use fetch directly since our useApi hook doesn't support FormData
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          if (id) {
+            // Editing existing project
+            setProjects((prev) => prev.map((proj) => (proj.id === id ? { ...proj, image: data.filePath } : proj)));
+          } else {
+            // New project
+            setNewProject((prev) => ({
+              ...prev,
+              image: data.filePath,
+            }));
+          }
+          
+          toast({
+            title: "Image uploaded",
+            description: "Project image has been uploaded successfully.",
+          });
+        } else {
+          toast({
+            title: "Upload failed",
+            description: data.message || "Failed to upload image.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Image upload error:', error);
+        toast({
+          title: "Upload failed",
+          description: "An unexpected error occurred during upload.",
+          variant: "destructive",
+        });
       }
     }
+  };
+
+  if (isLoadingProjects) {
+    return (
+      <div className="space-y-8">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-1/3 mb-2" />
+            <Skeleton className="h-4 w-2/3" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[...Array(5)].map((_, idx) => (
+              <div className="space-y-2" key={idx}>
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
+          <CardFooter>
+            <Skeleton className="h-10 w-32" />
+          </CardFooter>
+        </Card>
+        
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-1/4" />
+          {[...Array(3)].map((_, idx) => (
+            <Card key={idx}>
+              <CardHeader>
+                <div className="flex justify-between">
+                  <div>
+                    <Skeleton className="h-6 w-48 mb-1" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <Skeleton className="w-full md:w-48 h-32" />
+                  <div className="w-full">
+                    <Skeleton className="h-16 w-full mb-4" />
+                    <div className="flex flex-wrap gap-2">
+                      {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-6 w-16 rounded-md" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -294,7 +430,9 @@ export default function ProjectsEditor() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={handleAddProject}>Add Project</Button>
+          <Button onClick={handleAddProject} disabled={isSubmitting}>
+            {isSubmitting ? "Adding..." : "Add Project"}
+          </Button>
         </CardFooter>
       </Card>
 
@@ -410,10 +548,10 @@ export default function ProjectsEditor() {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <Button onClick={() => handleUpdateProject(proj.id)} size="sm">
-                    <Save className="h-4 w-4 mr-2" /> Save
+                  <Button onClick={() => handleUpdateProject(proj.id)} size="sm" disabled={isSubmitting}>
+                    <Save className="h-4 w-4 mr-2" /> {isSubmitting ? "Saving..." : "Save"}
                   </Button>
-                  <Button onClick={() => setEditingId(null)} variant="outline" size="sm">
+                  <Button onClick={() => setEditingId(null)} variant="outline" size="sm" disabled={isSubmitting}>
                     Cancel
                   </Button>
                 </div>
@@ -432,12 +570,12 @@ export default function ProjectsEditor() {
                       <CardDescription className="mt-1">{proj.shortDescription}</CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      <Button onClick={() => handleEditProject(proj)} variant="outline" size="icon">
+                      <Button onClick={() => handleEditProject(proj)} variant="outline" size="icon" disabled={isSubmitting}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button onClick={() => handleDeleteProject(proj.id)} variant="destructive" size="icon">
+                      <Button onClick={() => handleDeleteProject(proj.id)} variant="destructive" size="icon" disabled={isSubmitting}>
                         <Trash className="h-4 w-4" />
-                      </Button>
+                        </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -468,4 +606,3 @@ export default function ProjectsEditor() {
     </div>
   )
 }
-

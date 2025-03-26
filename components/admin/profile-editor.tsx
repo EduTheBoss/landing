@@ -2,69 +2,167 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
+import { useProfile } from "../profile-data-provider"
+import { useApi } from "@/hooks/use-api"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ProfileEditor() {
+  const { profile: initialProfile, isLoading: isLoadingProfile, fetchProfile } = useProfile();
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    title: "Full Stack Developer & UX Designer",
-    bio: "I build exceptional digital experiences that combine cutting-edge technology with intuitive design. With over 5 years of experience, I specialize in creating responsive web applications that solve real-world problems.",
+    name: "",
+    title: "",
+    bio: "",
     photo: "/placeholder.svg?height=320&width=320",
     socialLinks: {
-      github: "https://github.com/yourusername",
-      linkedin: "https://linkedin.com/in/yourusername",
-      twitter: "https://twitter.com/yourusername",
-      email: "your.email@example.com",
-      website: "https://yourwebsite.com",
+      github: "",
+      linkedin: "",
+      twitter: "",
+      email: "",
+      website: "",
     },
-  })
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const api = useApi();
+
+  // Update local state when profile data is loaded
+  useEffect(() => {
+    if (initialProfile) {
+      setProfile(initialProfile);
+    }
+  }, [initialProfile]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
 
     if (name.includes(".")) {
-      const [parent, child] = name.split(".")
+      const [parent, child] = name.split(".");
       setProfile((prev) => ({
         ...prev,
         [parent]: {
           ...prev[parent as keyof typeof prev],
           [child]: value,
         },
-      }))
+      }));
     } else {
       setProfile((prev) => ({
         ...prev,
         [name]: value,
-      }))
+      }));
     }
-  }
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // In a real application, this would save to a database or API
-    toast({
-      title: "Profile updated",
-      description: "Your profile information has been saved successfully.",
-    })
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const result = await api.put('/api/profile', profile);
+      if (result.success) {
+        toast({
+          title: "Profile updated",
+          description: "Your profile information has been saved successfully.",
+        });
+        // Refresh the profile data
+        await fetchProfile();
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to update profile.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Profile update error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
-      // In a real application, this would upload to a storage service
-      // For demo purposes, we're just creating a local URL
-      const url = URL.createObjectURL(file)
-      setProfile((prev) => ({
-        ...prev,
-        photo: url,
-      }))
+      // Create a FormData object
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        // Use fetch directly since our useApi hook doesn't support FormData
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setProfile((prev) => ({
+            ...prev,
+            photo: data.filePath,
+          }));
+          
+          toast({
+            title: "Image uploaded",
+            description: "Profile photo has been uploaded successfully.",
+          });
+        } else {
+          toast({
+            title: "Upload failed",
+            description: data.message || "Failed to upload image.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Image upload error:', error);
+        toast({
+          title: "Upload failed",
+          description: "An unexpected error occurred during upload.",
+          variant: "destructive",
+        });
+      }
     }
+  };
+
+  if (isLoadingProfile) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-8 w-1/3 mb-2" />
+          <Skeleton className="h-4 w-2/3" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <div className="flex items-center gap-4">
+              <Skeleton className="w-24 h-24 rounded-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </div>
+          
+          {[...Array(5)].map((_, idx) => (
+            <div className="space-y-2" key={idx}>
+              <Skeleton className="h-4 w-1/4" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ))}
+        </CardContent>
+        <CardFooter>
+          <Skeleton className="h-10 w-32" />
+        </CardFooter>
+      </Card>
+    );
   }
 
   return (
@@ -153,10 +251,11 @@ export default function ProfileEditor() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit">Save Changes</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save Changes"}
+          </Button>
         </CardFooter>
       </Card>
     </form>
   )
 }
-

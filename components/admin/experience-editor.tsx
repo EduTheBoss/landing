@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -8,132 +8,249 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash, Edit, Save, X } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
-
-interface Experience {
-  id: number
-  title: string
-  company: string
-  period: string
-  description: string
-  skills: string[]
-}
+import { usePortfolioData } from "../data-provider"
+import { useApi } from "@/hooks/use-api"
+import { Experience } from "../data-provider"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ExperienceEditor() {
-  const [experiences, setExperiences] = useState<Experience[]>([
-    {
-      id: 1,
-      title: "Senior Frontend Developer",
-      company: "Tech Innovations Inc.",
-      period: "2021 - Present",
-      description:
-        "Led the development of the company's flagship product, improving performance by 40%. Mentored junior developers and implemented modern frontend practices.",
-      skills: ["React", "TypeScript", "Next.js", "TailwindCSS"],
-    },
-    {
-      id: 2,
-      title: "Full Stack Developer",
-      company: "Digital Solutions Ltd.",
-      period: "2018 - 2021",
-      description:
-        "Developed and maintained multiple client projects. Implemented CI/CD pipelines and improved code quality through automated testing.",
-      skills: ["Node.js", "Express", "MongoDB", "React"],
-    },
-    {
-      id: 3,
-      title: "Junior Web Developer",
-      company: "WebCraft Agency",
-      period: "2016 - 2018",
-      description:
-        "Created responsive websites for clients across various industries. Collaborated with designers to implement pixel-perfect UIs.",
-      skills: ["HTML", "CSS", "JavaScript", "WordPress"],
-    },
-  ])
-
-  const [editingId, setEditingId] = useState<number | null>(null)
+  const { experiences: initialExperiences, isLoading: isLoadingExperiences, refreshData } = usePortfolioData();
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [newExperience, setNewExperience] = useState<Omit<Experience, "id">>({
     title: "",
     company: "",
     period: "",
     description: "",
     skills: [],
-  })
-  const [skillInput, setSkillInput] = useState("")
-  const [editSkillInput, setEditSkillInput] = useState("")
+  });
+  
+  const [skillInput, setSkillInput] = useState("");
+  const [editSkillInput, setEditSkillInput] = useState("");
+  
+  const api = useApi();
+
+  // Update local state when experiences data is loaded
+  useEffect(() => {
+    if (initialExperiences) {
+      setExperiences(initialExperiences);
+    }
+  }, [initialExperiences]);
 
   const handleAddSkill = () => {
     if (skillInput.trim()) {
       setNewExperience((prev) => ({
         ...prev,
         skills: [...prev.skills, skillInput.trim()],
-      }))
-      setSkillInput("")
+      }));
+      setSkillInput("");
     }
-  }
+  };
 
   const handleRemoveSkill = (index: number) => {
     setNewExperience((prev) => ({
       ...prev,
       skills: prev.skills.filter((_, i) => i !== index),
-    }))
-  }
+    }));
+  };
 
-  const handleAddExperience = () => {
+  const handleAddExperience = async () => {
     if (newExperience.title && newExperience.company) {
-      const newId = experiences.length > 0 ? Math.max(...experiences.map((e) => e.id)) + 1 : 1
-      setExperiences((prev) => [...prev, { ...newExperience, id: newId }])
-      setNewExperience({
-        title: "",
-        company: "",
-        period: "",
-        description: "",
-        skills: [],
-      })
-      toast({
-        title: "Experience added",
-        description: "New experience has been added successfully.",
-      })
+      setIsSubmitting(true);
+      
+      try {
+        const result = await api.post('/api/experiences', newExperience);
+        
+        if (result.success) {
+          // Reset form
+          setNewExperience({
+            title: "",
+            company: "",
+            period: "",
+            description: "",
+            skills: [],
+          });
+          
+          // Refresh data from API
+          await refreshData();
+          
+          toast({
+            title: "Experience added",
+            description: "New experience has been added successfully.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Failed to add experience.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Experience add error:', error);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
-  }
+  };
 
-  const handleDeleteExperience = (id: number) => {
-    setExperiences((prev) => prev.filter((exp) => exp.id !== id))
-    toast({
-      title: "Experience deleted",
-      description: "Experience has been removed successfully.",
-    })
-  }
+  const handleDeleteExperience = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      const result = await api.del(`/api/experiences/${id}`);
+      
+      if (result.success) {
+        // Update local state
+        setExperiences((prev) => prev.filter((exp) => exp.id !== id));
+        
+        toast({
+          title: "Experience deleted",
+          description: "Experience has been removed successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to delete experience.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Experience delete error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleEditExperience = (exp: Experience) => {
-    setEditingId(exp.id)
-    setEditSkillInput("")
-  }
+    setEditingId(exp.id);
+    setEditSkillInput("");
+  };
 
-  const handleUpdateExperience = (id: number) => {
-    setExperiences((prev) => prev.map((exp) => (exp.id === id ? { ...exp } : exp)))
-    setEditingId(null)
-    toast({
-      title: "Experience updated",
-      description: "Experience has been updated successfully.",
-    })
-  }
+  const handleUpdateExperience = async (id: number) => {
+    setIsSubmitting(true);
+    
+    try {
+      // Find the experience to update
+      const expToUpdate = experiences.find(exp => exp.id === id);
+      
+      if (!expToUpdate) {
+        toast({
+          title: "Error",
+          description: "Experience not found.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const result = await api.put(`/api/experiences/${id}`, expToUpdate);
+      
+      if (result.success) {
+        setEditingId(null);
+        
+        toast({
+          title: "Experience updated",
+          description: "Experience has been updated successfully.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to update experience.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Experience update error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleEditChange = (id: number, field: keyof Experience, value: string) => {
-    setExperiences((prev) => prev.map((exp) => (exp.id === id ? { ...exp, [field]: value } : exp)))
-  }
+    setExperiences((prev) => prev.map((exp) => (exp.id === id ? { ...exp, [field]: value } : exp)));
+  };
 
   const handleAddEditSkill = (id: number) => {
     if (editSkillInput.trim()) {
       setExperiences((prev) =>
-        prev.map((exp) => (exp.id === id ? { ...exp, skills: [...exp.skills, editSkillInput.trim()] } : exp)),
-      )
-      setEditSkillInput("")
+        prev.map((exp) => (exp.id === id ? { ...exp, skills: [...exp.skills, editSkillInput.trim()] } : exp))
+      );
+      setEditSkillInput("");
     }
-  }
+  };
 
   const handleRemoveEditSkill = (id: number, index: number) => {
     setExperiences((prev) =>
-      prev.map((exp) => (exp.id === id ? { ...exp, skills: exp.skills.filter((_, i) => i !== index) } : exp)),
-    )
+      prev.map((exp) => (exp.id === id ? { ...exp, skills: exp.skills.filter((_, i) => i !== index) } : exp))
+    );
+  };
+
+  if (isLoadingExperiences) {
+    return (
+      <div className="space-y-8">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-1/3 mb-2" />
+            <Skeleton className="h-4 w-2/3" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[...Array(4)].map((_, idx) => (
+              <div className="space-y-2" key={idx}>
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
+          <CardFooter>
+            <Skeleton className="h-10 w-32" />
+          </CardFooter>
+        </Card>
+        
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-1/4" />
+          {[...Array(3)].map((_, idx) => (
+            <Card key={idx}>
+              <CardHeader>
+                <div className="flex justify-between">
+                  <div>
+                    <Skeleton className="h-6 w-48 mb-1" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-8 w-8 rounded-md" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-16 w-full mb-4" />
+                <div className="flex flex-wrap gap-2">
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-6 w-16 rounded-md" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -219,7 +336,9 @@ export default function ExperienceEditor() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={handleAddExperience}>Add Experience</Button>
+          <Button onClick={handleAddExperience} disabled={isSubmitting}>
+            {isSubmitting ? "Adding..." : "Add Experience"}
+          </Button>
         </CardFooter>
       </Card>
 
@@ -300,10 +419,10 @@ export default function ExperienceEditor() {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <Button onClick={() => handleUpdateExperience(exp.id)} size="sm">
-                    <Save className="h-4 w-4 mr-2" /> Save
+                  <Button onClick={() => handleUpdateExperience(exp.id)} size="sm" disabled={isSubmitting}>
+                    <Save className="h-4 w-4 mr-2" /> {isSubmitting ? "Saving..." : "Save"}
                   </Button>
-                  <Button onClick={() => setEditingId(null)} variant="outline" size="sm">
+                  <Button onClick={() => setEditingId(null)} variant="outline" size="sm" disabled={isSubmitting}>
                     Cancel
                   </Button>
                 </div>
@@ -319,10 +438,10 @@ export default function ExperienceEditor() {
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      <Button onClick={() => handleEditExperience(exp)} variant="outline" size="icon">
+                      <Button onClick={() => handleEditExperience(exp)} variant="outline" size="icon" disabled={isSubmitting}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button onClick={() => handleDeleteExperience(exp.id)} variant="destructive" size="icon">
+                      <Button onClick={() => handleDeleteExperience(exp.id)} variant="destructive" size="icon" disabled={isSubmitting}>
                         <Trash className="h-4 w-4" />
                       </Button>
                     </div>
@@ -346,4 +465,3 @@ export default function ExperienceEditor() {
     </div>
   )
 }
-
