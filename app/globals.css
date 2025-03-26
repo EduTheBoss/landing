@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 215 100% 4%;
+
+    /* Main colors - Blues */
+    --ultra-dark-blue: 217 100% 4%; /* #000814 */
+    --dark-blue: 213 100% 12%; /* #001d3d */
+    --blue: 212 100% 20%; /* #003566 */
+
+    /* Accent colors - Yellows */
+    --dark-yellow: 42 100% 50%; /* #ffc300 */
+    --yellow: 49 100% 52%; /* #ffd60a */
+
+    /* UI Colors mapped to our palette */
+    --card: 0 0% 100%;
+    --card-foreground: 215 100% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 100% 4%;
+    --primary: 42 100% 50%; /* Dark Yellow as primary */
+    --primary-foreground: 215 100% 4%;
+    --secondary: 212 100% 20%; /* Blue as secondary */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 213 30% 95%;
+    --muted-foreground: 213 50% 30%;
+    --accent: 49 100% 52%; /* Yellow as accent */
+    --accent-foreground: 215 100% 4%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 213 30% 90%;
+    --input: 213 30% 90%;
+    --ring: 42 100% 50%; /* Dark Yellow for focus rings */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 215 100% 4%; /* Ultra Dark Blue */
+    --foreground: 0 0% 100%;
+    --card: 213 100% 12%; /* Dark Blue */
+    --card-foreground: 0 0% 100%;
+    --popover: 213 100% 12%; /* Dark Blue */
+    --popover-foreground: 0 0% 100%;
+    --primary: 42 100% 50%; /* Dark Yellow */
+    --primary-foreground: 215 100% 4%;
+    --secondary: 212 100% 20%; /* Blue */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 213 50% 15%;
+    --muted-foreground: 213 30% 70%;
+    --accent: 49 100% 52%; /* Yellow */
+    --accent-foreground: 215 100% 4%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 213 50% 20%;
+    --input: 213 50% 20%;
+    --ring: 42 100% 50%; /* Dark Yellow */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Animation utilities */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes slideInFromLeft {
+  0% {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromRight {
+  0% {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 4s ease-in-out infinite;
+}
+
+.animate-slide-left {
+  animation: slideInFromLeft 0.5s ease-out forwards;
+}
+
+.animate-slide-right {
+  animation: slideInFromRight 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.section-divider {
+  position: relative;
+  height: 100px;
+  overflow: hidden;
+}
+
+.section-divider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--background) 25%, transparent 25%) -50px 0,
+    linear-gradient(225deg, var(--background) 25%, transparent 25%) -50px 0,
+    linear-gradient(315deg, var(--background) 25%, transparent 25%),
+    linear-gradient(45deg, var(--background) 25%, transparent 25%);
+  background-size: 100px 100px;
+  background-color: hsl(var(--primary) / 0.1);
+}
+
+.bg-dots {
+  background-image: radial-gradient(hsl(var(--primary) / 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.bg-grid {
+  background-image: linear-gradient(to right, hsl(var(--muted) / 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--muted) / 0.5) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.bg-gradient {
+  background: linear-gradient(to bottom right, hsl(var(--ultra-dark-blue)), hsl(var(--dark-blue)));
+}
+
+.card-hover-effect {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.section-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.section-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.05;
+  z-index: -1;
+}
+
+.hero-section {
+  background-color: hsl(var(--ultra-dark-blue));
+  color: white;
+}
+
+.hero-section::before {
+  background: radial-gradient(circle at top right, hsl(var(--dark-yellow)), transparent 70%);
+}
+
+.experience-section {
+  background-color: hsl(var(--dark-blue));
+  color: white;
+}
+
+.experience-section::before {
+  background: linear-gradient(135deg, hsl(var(--dark-yellow)), transparent 70%);
+}
+
+.projects-section {
+  background-color: hsl(var(--blue));
+  color: white;
+}
+
+.projects-section::before {
+  background: radial-gradient(circle at bottom left, hsl(var(--yellow)), transparent 70%);
+}
+
+.education-section {
+  background-color: hsl(var(--dark-blue));
+  color: white;
+}
+
+.education-section::before {
+  background: linear-gradient(45deg, hsl(var(--dark-yellow)), transparent 70%);
+}
+
+.social-section {
+  background-color: hsl(var(--ultra-dark-blue));
+  color: white;
+}
+
+.social-section::before {
+  background: radial-gradient(circle at center, hsl(var(--yellow)), transparent 70%);
+}
+
+/* Custom card styles for our color scheme */
+.custom-card {
+  background-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.yellow-glow {
+  box-shadow: 0 0 15px rgba(255, 195, 0, 0.3);
+}
+
+.blue-gradient {
+  background: linear-gradient(to right, hsl(var(--ultra-dark-blue)), hsl(var(--blue)));
+}
+
