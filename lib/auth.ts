@@ -3,8 +3,8 @@ import { readData } from './db';
 import { sign, verify } from 'jsonwebtoken';
 import { serialize, parse } from 'cookie';
 
-// Secret key for JWT
-const SECRET_KEY = 'your_jwt_secret_key';
+// Secret key for JWT - in a real app, use a strong, environment-specific secret
+const SECRET_KEY = process.env.JWT_SECRET || 'fallback_secret_key_for_development';
 
 // JWT token expiration (in seconds)
 const TOKEN_EXPIRATION = 60 * 60 * 24 * 7; // 1 week
@@ -29,23 +29,22 @@ export const createToken = (username: string): string => {
 // Function to set the authentication cookie
 export const setAuthCookie = (res: NextApiResponse, token: string): void => {
   const cookie = serialize(COOKIE_NAME, token, {
-    httpOnly: false, // Allow JavaScript access for debugging
-    secure: false, // False for HTTP in development
-    sameSite: 'lax', // Lax is more permissive than strict
-    path: '/',
+    httpOnly: true, // Prevent client-side JS from accessing the cookie
+    secure: process.env.NODE_ENV === 'production', // Use secure in production
+    sameSite: 'strict', // Prevent CSRF attacks
+    path: '/', // Available across the entire site
     maxAge: TOKEN_EXPIRATION,
   });
   
-  console.log("Setting cookie:", cookie);
   res.setHeader('Set-Cookie', cookie);
 };
 
 // Function to clear the authentication cookie
 export const clearAuthCookie = (res: NextApiResponse): void => {
   const cookie = serialize(COOKIE_NAME, '', {
-    httpOnly: false,
-    secure: false,
-    sameSite: 'lax',
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
     path: '/',
     maxAge: -1, // Expire immediately
   });
@@ -64,17 +63,11 @@ export const verifyToken = (token: string): boolean => {
 
 // Middleware to check if the user is authenticated
 export const isAuthenticated = (req: NextApiRequest): boolean => {
-  console.log("Checking authentication");
-  
   // Check for Authorization header first
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    console.log("Found token in Authorization header");
-    if (verifyToken(token)) {
-      console.log("Token is valid");
-      return true;
-    }
+    if (verifyToken(token)) return true;
   }
   
   // Fallback to cookies
@@ -84,11 +77,9 @@ export const isAuthenticated = (req: NextApiRequest): boolean => {
     const token = parsedCookies[COOKIE_NAME];
     
     if (token && verifyToken(token)) {
-      console.log("Token from cookie is valid");
       return true;
     }
   }
   
-  console.log("Authentication failed");
   return false;
 };

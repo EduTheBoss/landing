@@ -20,21 +20,33 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
 
-    // For demo purposes, using a simple hardcoded check
-    // In a real application, this would be a server request
-    setTimeout(() => {
-      if (username === "admin" && password === "password") {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
         onLogin()
       } else {
-        setError("Invalid username or password")
+        setError(data.message || "Login failed")
       }
+    } catch (error) {
+      setError("An unexpected error occurred")
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -54,7 +66,12 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
             )}
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
-              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+              <Input 
+                id="username" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                required 
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -77,4 +94,3 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
     </div>
   )
 }
-

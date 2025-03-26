@@ -19,8 +19,11 @@ export function useApi<T = any>() {
     setState({ loading: true, error: undefined, data: undefined });
     
     try {
-      // Get token from localStorage if available
-      const token = localStorage.getItem('authToken');
+      // Get token from cookies
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('portfolio_auth_token='))
+        ?.split('=')[1];
       
       // Prepare headers with existing options.headers if present
       const existingHeaders = options?.headers || {};
@@ -39,7 +42,7 @@ export function useApi<T = any>() {
       const response = await fetch(url, {
         ...options,
         headers,
-        credentials: 'include', // Include cookies for browser-based auth
+        credentials: 'include', // Include cookies for authentication
       });
       
       // Try to parse JSON, but handle case where response might not be JSON
