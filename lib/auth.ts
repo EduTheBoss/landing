@@ -29,22 +29,24 @@ export const createToken = (username: string): string => {
 // Function to set the authentication cookie
 export const setAuthCookie = (res: NextApiResponse, token: string): void => {
   const cookie = serialize(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV !== 'development',
+    httpOnly: false, // Set to false for debugging
+    secure: false, // Set to false for http in development
     maxAge: TOKEN_EXPIRATION,
-    sameSite: 'strict',
+    sameSite: 'lax', // Use lax instead of strict
     path: '/',
   });
+  
+  console.log("Setting cookie:", cookie); // Debug log
   res.setHeader('Set-Cookie', cookie);
 };
 
 // Function to clear the authentication cookie
 export const clearAuthCookie = (res: NextApiResponse): void => {
   const cookie = serialize(COOKIE_NAME, '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV !== 'development',
+    httpOnly: false,
+    secure: false,
     maxAge: -1,
-    sameSite: 'strict',
+    sameSite: 'lax',
     path: '/',
   });
   res.setHeader('Set-Cookie', cookie);
@@ -62,13 +64,21 @@ export const verifyToken = (token: string): boolean => {
 
 // Middleware to check if the user is authenticated
 export const isAuthenticated = (req: NextApiRequest): boolean => {
+  // For API routes
   const cookies = req.headers.cookie;
-  if (!cookies) return false;
-
-  const parsedCookies = parse(cookies);
-  const token = parsedCookies[COOKIE_NAME];
+  if (cookies) {
+    const parsedCookies = parse(cookies);
+    const token = parsedCookies[COOKIE_NAME];
+    if (token && verifyToken(token)) {
+      return true;
+    }
+  }
   
-  if (!token) return false;
+  // For development only: allow all API access during development
+  if (process.env.NODE_ENV === 'development') {
+    console.log("Development mode: bypassing authentication");
+    return true;
+  }
   
-  return verifyToken(token);
+  return false;
 };

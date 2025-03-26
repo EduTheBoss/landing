@@ -1,3 +1,5 @@
+"use client"
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useApi } from '@/hooks/use-api';
 

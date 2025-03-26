@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useCallback } from 'react';
 
 interface ApiResponse<T> {
@@ -21,6 +23,7 @@ export function useApi<T = any>() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Add this to include cookies with all requests
         ...options,
       });
       

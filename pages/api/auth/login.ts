@@ -9,6 +9,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     const { username, password } = req.body;
+    console.log("Login attempt:", username); // Debug log
 
     // Check if the user exists and the password is correct
     if (!authenticateUser(username, password)) {
@@ -17,9 +18,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     // Create a JWT token
     const token = createToken(username);
+    console.log("Token created:", !!token); // Debug log
 
     // Set the authentication cookie
     setAuthCookie(res, token);
+    console.log("Cookie should be set now"); // Debug log
 
     // Return success
     return res.status(200).json({ success: true, message: 'Login successful' });
