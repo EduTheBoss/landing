@@ -2,11 +2,6 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { authenticateUser, createToken } from '../../../lib/auth';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Log all incoming request details
-  console.log('Login Request Received');
-  console.log('Request Method:', req.method);
-  console.log('Request Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('Request Body:', JSON.stringify(req.body, null, 2));
 
   // Explicitly set CORS headers to allow credentials
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -28,7 +23,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     const { username, password } = req.body;
-    console.log('Attempting to authenticate:', username);
 
     // Check if the user exists and the password is correct
     if (!authenticateUser(username, password)) {
@@ -38,7 +32,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     // Create a JWT token
     const token = createToken(username);
-    console.log('Token created:', token);
 
     // Set the authentication cookie with debug logging
     const cookieOptions = [
@@ -50,11 +43,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       process.env.NODE_ENV === 'production' ? 'Secure' : ''
     ].filter(Boolean).join('; ');
 
-    console.log('Setting Cookie:', cookieOptions);
     res.setHeader('Set-Cookie', cookieOptions);
 
-    // Log all response headers
-    console.log('Response Headers:', JSON.stringify(res.getHeaders(), null, 2));
 
     // Return the token in the response body as well for API clients
     return res.status(200).json({ 
